@@ -108,9 +108,9 @@ Follow the instructions in [Quickstart: Create a function in Azure with TypeScri
 
 ## :page_facing_up: Custom Ruleset
 
-This template provides you with the default OAS (OpenAPI Specification) ruleset from Spectral. To see the exact rules within the ruleset, see [OpenAPI Rules](https://docs.stoplight.io/docs/spectral/4dec24461f3af-open-api-rules).
+This template provides you with the default ruleset for TypeSpec. To see the exact rules within the ruleset, see [TypeSpec Rules](https://github.com/microsoft/typespec).
 
-If you want to customize your Ruleset for analysis, simply swap out the default ruleset file oas.yaml located in `{workSpaceFolder}/resources/rulesets` with any valid Spectral ruleset file. We accept all valid Spectral formats (YAML, JSON, and JavaScript). Afterward, head over to the `{workSpaceFolder}/src/constants.ts` file and update the `RulesetFileName` constant with your chosen ruleset file name.
+If you want to customize your Ruleset for analysis, simply swap out the default ruleset file typespec.yaml located in `{workSpaceFolder}/resources/rulesets` with any valid TypeSpec ruleset file. We accept all valid TypeSpec formats (YAML, JSON, and JavaScript). Afterward, head over to the `{workSpaceFolder}/src/constants.ts` file and update the `RulesetFileName` constant with your chosen ruleset file name.
 
 ## :pencil2: Contributing
 

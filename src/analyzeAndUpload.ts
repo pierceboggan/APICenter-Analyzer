@@ -4,17 +4,9 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { InvocationContext } from "@azure/functions";
-import * as spectral from "@stoplight/spectral-core";
-import * as parsers from "@stoplight/spectral-parsers";
-import { fetch } from "@stoplight/spectral-runtime";
+import { compile, compileFromFile } from "@typespec/compiler";
 import { IApiCenterClient } from "./client/IApiCenterClient";
 import { ApiDefinitionResource } from "./utils/armResourceIdUtils";
-import { determineSpecFormat } from "./utils/fileUtils";
-import { convertToUniformResults } from "./utils/validationResultsUtils";
-
-// Note: these are in SimpleJS format, do not use import/export
-const { bundleAndLoadRuleset } = require("@stoplight/spectral-ruleset-bundler/with-loader");
-const fs = require("fs");
 
 export interface runAnalysisOptions {
     apiDefinitionResource: ApiDefinitionResource;
@@ -24,8 +16,6 @@ export interface runAnalysisOptions {
 
 /**
  * Analyzes the API specification and uploads the results to the API Center service.
- *
- * @see {@link https://meta.stoplight.io/docs/spectral/eb68e7afd463e-spectral-in-java-script} for more information on the spectral library
  */
 export async function analyzeAndUploadAsync(options: runAnalysisOptions, context: InvocationContext): Promise<void> {
     let operationId = "";
@@ -42,33 +32,23 @@ export async function analyzeAndUploadAsync(options: runAnalysisOptions, context
         context.log('Fetching spec file.');
         const specFileContent = await apiCenterClient.getApiSpecificationFileContentAsync();
 
-        context.log('Parsing spec file to determine the format.');
-        var apiSpecDocument = null;
-        const specFormat = determineSpecFormat(specFileContent);
-        if (specFormat === "unknown") {
-            throw new Error('Unknown spec format. Please ensure that the spec file is in either JSON, YAML, or JavaScript format.');
-        } else if (specFormat === "json") {
-            apiSpecDocument = new spectral.Document(specFileContent, parsers.Json);
-        } else if (specFormat === "yaml") {
-            apiSpecDocument = new spectral.Document(specFileContent, parsers.Yaml);
-        }
-        context.log(`The spec format is ${specFormat}`);
-
-        context.log('Setting ruleset for spectral.');
-        const spectralClient = new spectral.Spectral();
-        if (specFormat === "json" || specFormat === "yaml") {
-            const ruleset = await bundleAndLoadRuleset(options.rulesetFilePath, { fs, fetch });
-            spectralClient.setRuleset(ruleset);
-        } else {
-            // @see https://meta.stoplight.io/docs/spectral/eb68e7afd463e-spectral-in-java-script#load-a-javascript-ruleset
-            throw new Error('JavaScript ruleset is not yet supported.');
-        }
-
-        context.log('Performing API Analysis.');
-        const analysisResults = await spectralClient.run(apiSpecDocument);
+        context.log('Compiling spec file using TypeSpec.');
+        const diagnostics = await compileFromFile(specFileContent);
 
         context.log('Transforming results');
-        const uniformAnalysisResults = convertToUniformResults(analysisResults);
+        const uniformAnalysisResults = diagnostics.map(diagnostic => ({
+            analyzer: "typespec",
+            description: diagnostic.message,
+            analyzerRuleName: diagnostic.code,
+            severity: diagnostic.severity,
+            docUrl: null,
+            details: {
+                range: {
+                    start: `${diagnostic.range.start.line}:${diagnostic.range.start.character}`,
+                    end: `${diagnostic.range.end.line}:${diagnostic.range.end.character}`
+                }
+            }
+        }));
 
         context.log('Uploading report');
         await apiCenterClient.updateAnalysisStateAsync(
